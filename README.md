@@ -46,39 +46,89 @@ k230_pangofly/
 
 #### 方法二：本地环境编译
 
-**系统要求**：Ubuntu 20.04/22.04 LTS
+**系统要求**：Ubuntu 20.04/22.04 LTS（64位）
 
-**安装依赖**：
+**前置条件**：确保系统已更新并安装基础依赖
+
 ```bash
-sudo apt-get update && sudo apt-get install -y build-essential bison flex scons python3 lbzip2
+# 更新系统
+sudo apt-get update && sudo apt-get upgrade -y
 ```
 
-**下载工具链**：
+**安装编译依赖**：
 ```bash
+sudo apt-get install -y \
+    build-essential \
+    bison \
+    flex \
+    scons \
+    python3 \
+    python3-pip \
+    lbzip2 \
+    git
+```
+
+**克隆仓库**：
+```bash
+git clone <repository-url> k230_pangofly
 cd k230_pangofly
+```
+
+**下载工具链**（约450MB，需耐心等待）：
+```bash
 make dl_toolchain
 ```
 
 **编译步骤**：
 
 ```bash
-# 1. 进入仓库目录
+# 1. 进入仓库目录（如果还未进入）
 cd k230_pangofly
 
 # 2. 配置编译选项（以立创开发板为例）
 make k230_rtos_lckfb_defconfig
 
-# 3. 编译镜像（-j 后接CPU核心数）
-make -j8
+# 3. 编译镜像（-j 后接CPU核心数，建议使用全部核心）
+make -j$(nproc)
 
-# 4. 编译完成后，镜像位于：
-# output/k230_rtos_lckfb_defconfig/images/RtSmart-K230_LCKFB_rtsmart_local_nncase_v2.11.0.img
+# 4. 编译完成后，输出文件位于：
+# output/k230_rtos_lckfb_defconfig/images/
+# output/k230_rtos_lckfb_defconfig/rtsmart/
 ```
 
 **支持的开发板配置**：
 - `k230_rtos_lckfb_defconfig` - 立创开发板（LCKFB）
 - `k230_rtos_evb_defconfig` - 官方评估板（EVB）
 - `k230_canmv_lckfb_defconfig` - CanMV 立创开发板
+
+**编译时间参考**：
+- 首次编译：约30-60分钟（取决于网络和CPU性能）
+- 增量编译：约5-15分钟
+
+**常见问题排查**：
+
+**问题1：toolchain 下载失败**
+```bash
+# 检查网络连接
+ping -c 3 kendryte-download.canaan-creative.com
+
+# 如果官方下载地址无法访问，可以手动下载工具链
+# 工具链地址：https://kendryte-download.canaan-creative.com/k230/toolchain/
+# 下载 riscv64-unknown-linux-musl-rv64imafdcv-lp64d-20230420.tar.bz2
+# 解压到 ~/.kendryte/k230_toolchains/ 目录
+```
+
+**问题2：缺少依赖**
+```bash
+# 重新安装所有依赖
+sudo apt-get install -y build-essential bison flex scons python3 lbzip2
+```
+
+**问题3：编译权限问题**
+```bash
+# 确保当前用户对仓库目录有读写权限
+chown -R $USER:$USER k230_pangofly
+```
 
 ### 2. Pangofly 编译指南
 
@@ -140,8 +190,14 @@ cd /app/examples
 # 查看磁盘设备（确保选择正确的SD卡设备）
 lsblk
 
-# 烧录镜像（/dev/sdX 替换为你的SD卡设备）
-dd if=output/k230_rtos_lckfb_defconfig/images/RtSmart-K230_LCKFB_rtsmart_local_nncase_v2.11.0.img of=/dev/sdX bs=1M status=progress
+# 卸载SD卡分区（如果已挂载）
+sudo umount /dev/sdX*
+
+# 烧录镜像（/dev/sdX 替换为你的SD卡设备，注意：这会清除SD卡上的所有数据！）
+sudo dd if=output/k230_rtos_lckfb_defconfig/images/RtSmart-K230_LCKFB_rtsmart_local_nncase_v2.11.0.img of=/dev/sdX bs=1M status=progress conv=fsync
+
+# 同步缓存
+sync
 ```
 
 **Windows系统**:
@@ -159,6 +215,30 @@ dd if=output/k230_rtos_lckfb_defconfig/images/RtSmart-K230_LCKFB_rtsmart_local_n
 
 2. **`src/rtsmart/rtsmart/kernel/rt-thread/components/lwp/lwp_user_mm.c`**
    - 添加调试输出，便于追踪 mmap 操作
+
+## 开发环境配置
+
+### 设置代理（可选）
+
+如果需要通过代理访问网络，可以设置环境变量：
+
+```bash
+# 设置代理（替换为你的代理地址）
+export http_proxy=http://192.168.96.1:7890
+export https_proxy=http://192.168.96.1:7890
+
+# 写入 bashrc 使其永久生效
+echo "export http_proxy=http://192.168.96.1:7890" >> ~/.bashrc
+echo "export https_proxy=http://192.168.96.1:7890" >> ~/.bashrc
+source ~/.bashrc
+```
+
+### 配置 Git
+
+```bash
+git config --global user.email "your.email@example.com"
+git config --global user.name "Your Name"
+```
 
 ## 贡献与支持
 
