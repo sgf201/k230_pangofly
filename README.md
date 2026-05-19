@@ -210,6 +210,48 @@ sleep 2
 ./pangofly_writer.elf
 ```
 
+**测试结果示例**：
+
+```
+msh /sdcard>./pangofly_writer.elf 
+Starting Pangofly SHM Writer... 
+[INFO] Creating shm with key: d867f5e821b9528d, size: 79112, fixed_addr: 0x104d00000 
+[INFO] Successfully mapped shm to fixed address: 0x104d00000 
+[INFO] create shm, channel: test_channel, shm name: /pangofly_shm_335535812839717219, ceiling size: 1024 
+Writer: Creating shared memory channel... 
+Writer: Sent message id=0, success=1 
+Reader: Received message id=0, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=1, success=1 
+Reader: Received message id=1, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=2, success=1 
+Reader: Received message id=2, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=3, success=1 
+Reader: Received message id=3, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=4, success=1 
+Reader: Received message id=4, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=5, success=1 
+Reader: Received message id=5, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=6, success=1 
+Reader: Received message id=6, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=7, success=1 
+Reader: Received message id=7, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=8, success=1 
+Reader: Received message id=8, value=3.14, name=Hello Pangofly, seq=1 
+Writer: Sent message id=9, success=1 
+Reader: Received message id=9, value=3.14, name=Hello Pangofly, seq=1 
+Reader: All 10 messages received! 
+Reader done! 
+Writer: All 10 messages sent! 
+Writer done!
+```
+
+**测试结果说明**：
+- ✅ 共享内存创建成功，使用固定地址 `0x104d00000`
+- ✅ Writer 进程成功发送 10 条消息
+- ✅ Reader 进程成功接收 10 条消息
+- ✅ 消息内容正确：`value=3.14, name=Hello Pangofly`
+- ✅ 跨进程通信正常工作
+
 **方法二：使用多进程测试程序**
 
 ```bash
