@@ -1,0 +1,95 @@
+menu "RT-Smart Configuration"
+
+    config RTSMART_CONFIG_FILE
+        string "Rtsmart config file prefix"
+        default BOARD
+        help
+            rtsmart board config file name without _defconfig
+
+    choice RTT_CONSOLE_ID
+        bool "Rtsmart console uart"
+        default RTT_CONSOLE_UART0
+
+        config RTT_CONSOLE_UART0
+            bool "UART0"
+        config RTT_CONSOLE_UART1
+            bool "UART1"
+        config RTT_CONSOLE_UART2
+            bool "UART2"
+        config RTT_CONSOLE_UART3
+            bool "UART3"
+        config RTT_CONSOLE_UART4
+            bool "UART4"
+    endchoice
+
+    config RTT_CONSOLE_ID
+        int
+        default 0 if RTT_CONSOLE_UART0
+        default 1 if RTT_CONSOLE_UART1
+        default 2 if RTT_CONSOLE_UART2
+        default 3 if RTT_CONSOLE_UART3
+        default 4 if RTT_CONSOLE_UART4
+
+    config RTT_CONSOLE_BAUD
+        int "Rtsmart console uart baudrate"
+        default 115200
+
+    config RTSMART_LWP_APP_STACK_SIZE
+        hex "Rtsmart LWP app stack size"
+        default 0x20000
+        help
+            The stack size for LWP application, default is 0x20000 bytes.
+
+    config RTT_AUTO_EXEC_CMD
+        string "Rtsmart auto execute command string"
+        default "@preload &" if FAST_BOOT_CONFIGURATION
+        default ""
+        help
+            Under Secure Boot, this command must start with @preload.
+            @preload is an internal auto-exec trigger, not an msh command.
+            Use @preload only when FAST_BOOT_CONFIGURATION is enabled and a
+            real rtapp image is preloaded by U-Boot and described by ATAG.
+
+    menuconfig RT_AUTO_RESIZE_PARTITION
+        bool "Enable auto resize partition"
+        default y
+        help
+            Support auto resize the last partition, use the disk remain space
+            Now just support MMC device and MBR partition table.
+
+        if RT_AUTO_RESIZE_PARTITION
+            config RT_PARTITION_NUMBER
+                int "RTSmart Filesystem Count"
+                default 3
+                range 2 3
+        endif
+
+    menu "RT-Thread Smart System Features"
+        config ENABLE_DUAL_CDC_PORT
+            bool "Enable dual CDC ACM ports"
+            default n
+
+        config ENABLE_NETWORK_RT_LAN_OVER_USB
+            bool "Enable Network RT-Thread Lan(eth) over USB"
+            default y
+
+        config ENABLE_NETWORK_RT_WLAN
+            bool "Enable Network RT-Thread Wlan"
+            default y
+
+        menuconfig ENABLE_UVC_CAMERA
+            bool "Enable UVC Camera Support"
+            default n
+
+            if ENABLE_UVC_CAMERA
+                config USBHOST_MAX_VIDEO_CLASS
+                    int "Max Support uvc device"
+                    default 1
+            endif
+
+        config ENABLE_ROTARY_ENCODER
+            bool "Enable Rotary Encoder Support"
+            default n
+    endmenu
+
+endmenu

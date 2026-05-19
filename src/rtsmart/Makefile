@@ -1,0 +1,241 @@
+ifneq ($(MKENV_INCLUDED),1)
+export SDK_SRC_ROOT_DIR := $(realpath $(dir $(realpath $(lastword $(MAKEFILE_LIST))))/../../)
+endif
+
+include $(SDK_SRC_ROOT_DIR)/tools/mkenv.mk
+
+include $(SDK_TOOLS_DIR)/toolchain_rtsmart.mk
+
+include $(SDK_SRC_ROOT_DIR)/.config
+
+ifneq ($(shell [ -d ${SDK_BUILD_IMAGES_DIR}/rtsmart ] && echo 1 || echo 0),1)
+$(shell mkdir -p ${SDK_BUILD_IMAGES_DIR}/rtsmart)
+endif
+
+ifneq ($(shell [ -d ${SDK_BUILD_IMAGES_DIR}/bin/ ] && echo 1 || echo 0),1)
+$(shell mkdir -p ${SDK_BUILD_IMAGES_DIR}/bin/)
+endif
+
+ifneq ($(shell [ -d ${SDK_BUILD_IMAGES_DIR}/sdcard/ ] && echo 1 || echo 0),1)
+$(shell mkdir -p ${SDK_BUILD_IMAGES_DIR}/sdcard/)
+endif
+
+ifneq ($(shell [ -d ${SDK_RTSMART_BUILD_DIR}/kernel/ ] && echo 1 || echo 0),1)
+$(shell mkdir -p ${SDK_RTSMART_BUILD_DIR}/kernel/)
+endif
+
+SHELL := bash
+
+.PHONY: all clean distclean menuconfig
+
+.parse_config:
+	@export RTT_CC=gcc; \
+	export RTT_CC_PREFIX=$(CROSS_COMPILE_PREFIX); \
+	export RTT_EXEC_PATH=$(CROSS_COMPILE_DIR); \
+	export RTSMART_SRC_DIR=$(SDK_RTSMART_SRC_DIR)/rtsmart; \
+	export RTT_SDK_BUILD_DIR=$(SDK_RTSMART_BUILD_DIR)/kernel; \
+	export MPP_SRC_DIR=$(SDK_RTSMART_SRC_DIR)/mpp; \
+	cp -f $(SDK_SRC_ROOT_DIR)/include/generated/autoconf.h $(SDK_RTSMART_SRC_DIR)/mpp/include/comm/k_autoconf_comm.h; \
+	cp -f $(SDK_SRC_ROOT_DIR)/include/generated/autoconf.h $(SDK_RTSMART_SRC_DIR)/rtsmart/kernel/bsp/maix3/k_autoconf_comm.h; \
+	pushd $(SDK_RTSMART_SRC_DIR)/rtsmart/kernel/bsp/maix3; \
+	if [ ! -f configs/${RTSMART_DEFCONFIG} ]; then \
+		echo "Error: Configuration file '${RTSMART_DEFCONFIG}' not found."; \
+		echo "Please ensure that '${RTSMART_DEFCONFIG}' exists in the 'configs' directory."; \
+		exit 1; \
+	fi; \
+	rm -rf rtconfig.h; \
+	scons --useconfig=configs/${RTSMART_DEFCONFIG} || exit $?; \
+	popd; \
+	touch .parse_config
+
+.PHONY: kernel
+kernel: .parse_config
+	@$(SDK_TOOLS_DIR)/gen_verinfo_h.sh $(SDK_RTSMART_SRC_DIR)/rtsmart/kernel/bsp/maix3/sdk_version.h
+
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/mpp/kernel all || exit $?;
+
+	@export RTT_CC=gcc; \
+	export RTT_CC_PREFIX=$(CROSS_COMPILE_PREFIX); \
+	export RTT_EXEC_PATH=$(CROSS_COMPILE_DIR); \
+	export RTSMART_SRC_DIR=$(SDK_RTSMART_SRC_DIR)/rtsmart; \
+	export RTT_SDK_BUILD_DIR=$(SDK_RTSMART_BUILD_DIR)/kernel; \
+	export MPP_SRC_DIR=$(SDK_RTSMART_SRC_DIR)/mpp; \
+	pushd $(SDK_RTSMART_SRC_DIR)/rtsmart/kernel/bsp/maix3; \
+	rm -f rtthread.{elf,bin}; \
+	scons -j$(NCPUS) || exit $?; \
+	cp rtthread.bin ${SDK_BUILD_IMAGES_DIR}/rtsmart; \
+	popd;
+
+.PHONY: mpp
+mpp: .parse_config
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src all || exit $?;
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/mpp/middleware/src all || exit $?;
+
+.PHONY: libs
+libs: mpp
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/libs all || exit $?;
+
+.PHONY: examples
+examples: libs
+ifeq ($(CONFIG_RTT_ENABLE_BUILD_EXAMPLES),y)
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/examples all || exit $?;
+endif
+
+.PHONY: kernel-clean
+kernel-clean:
+	@export RTT_CC=gcc; \
+	export RTT_CC_PREFIX=$(CROSS_COMPILE_PREFIX); \
+	export RTT_EXEC_PATH=$(CROSS_COMPILE_DIR); \
+	export RTSMART_SRC_DIR=$(SDK_RTSMART_SRC_DIR)/rtsmart; \
+	export RTT_SDK_BUILD_DIR=$(SDK_RTSMART_BUILD_DIR)/kernel; \
+	export MPP_SRC_DIR=$(SDK_RTSMART_SRC_DIR)/mpp; \
+	pushd $(SDK_RTSMART_SRC_DIR)/rtsmart/kernel/bsp/maix3; \
+	rm -f rtthread.elf .config .config.old k_autoconf_comm.h link_stacksize.lds link.lds rtconfig.h; \
+	scons -c || exit $?; \
+	popd; \
+	rm -rf ${SDK_BUILD_IMAGES_DIR}/rtsmart;
+
+.PHONY: mpp-clean
+mpp-clean:
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/mpp/kernel clean || exit $?; 
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src clean || exit $?;
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/mpp/middleware/src clean || exit $?;
+
+.PHONY: libs-clean
+libs-celan:
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/libs clean || exit $?;
+
+.PHONY: examples-clean
+examples-clean:
+ifeq ($(CONFIG_RTT_ENABLE_BUILD_EXAMPLES),y)
+	@$(MAKE) -C $(SDK_RTSMART_SRC_DIR)/examples clean || exit $?;
+endif
+
+all: .parse_config kernel mpp libs examples
+	@echo "Copy sensor configs from $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src/sensor/config/ to ${SDK_BUILD_IMAGES_DIR}/bin/"
+
+ifeq ($(CONFIG_MPP_ENABLE_SENSOR_GC2093),y)
+	@rsync -a --delete $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src/sensor/config/gc2093-* ${SDK_BUILD_IMAGES_DIR}/bin/
+endif
+ifeq ($(CONFIG_MPP_ENABLE_SENSOR_OV5647),y)
+	@rsync -a --delete $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src/sensor/config/ov5647-* ${SDK_BUILD_IMAGES_DIR}/bin/
+endif
+ifeq ($(CONFIG_MPP_ENABLE_SENSOR_IMX335),y)
+	@rsync -a --delete $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src/sensor/config/imx335-* ${SDK_BUILD_IMAGES_DIR}/bin/
+endif
+ifeq ($(CONFIG_MPP_ENABLE_SENSOR_SC132GS),y)
+	@rsync -a --delete $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src/sensor/config/sc132gs-* ${SDK_BUILD_IMAGES_DIR}/bin/
+endif
+ifeq ($(CONFIG_MPP_ENABLE_SENSOR_XS9950),y)
+	@rsync -a --delete $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src/sensor/config/xs9950-* ${SDK_BUILD_IMAGES_DIR}/bin/
+endif
+ifeq ($(CONFIG_MPP_ENABLE_SENSOR_BF3238),y)
+	@rsync -a --delete $(SDK_RTSMART_SRC_DIR)/mpp/userapps/src/sensor/config/bf3238-* ${SDK_BUILD_IMAGES_DIR}/bin/
+endif
+
+ifeq ($(CONFIG_RTT_ENABLE_BUILD_EXAMPLES),y)
+	@echo "Copy rtsmart examples."
+	$(call sync_dir, $(SDK_RTSMART_SRC_DIR)/examples/elf/, $(SDK_BUILD_IMAGES_DIR)/sdcard/app/examples/)
+endif
+
+	@echo "Generate ${SDK_BUILD_IMAGES_DIR}/bin/config.txt"
+	@$(SDK_SRC_ROOT_DIR)/src/rtsmart/gen_config
+
+clean: mpp-clean kernel-clean libs-celan examples-clean
+	@rm -rf .parse_config
+	@rm -rf ${SDK_BUILD_IMAGES_DIR}/rtsmart
+
+distclean: clean
+
+menuconfig:
+	@rm -rf .parse_config
+	@rm -rf ${SDK_BUILD_IMAGES_DIR}/rtsmart
+	@export RTT_CC=gcc; \
+	export RTT_CC_PREFIX=$(CROSS_COMPILE_PREFIX); \
+	export RTT_EXEC_PATH=$(CROSS_COMPILE_DIR); \
+	export RTSMART_SRC_DIR=$(SDK_RTSMART_SRC_DIR)/rtsmart; \
+	export RTT_SDK_BUILD_DIR=$(SDK_RTSMART_BUILD_DIR); \
+	export MPP_SRC_DIR=$(SDK_RTSMART_SRC_DIR)/mpp; \
+	pushd $(SDK_RTSMART_SRC_DIR)/rtsmart/kernel/bsp/maix3; \
+	rm -rf rtconfig.h .config .config.old; \
+	scons --useconfig=configs/${RTSMART_DEFCONFIG} || exit $?; \
+	scons --genconfig; \
+	scons --menuconfig; \
+	cp .config configs/${RTSMART_DEFCONFIG}; \
+	popd;
+
+.PHONY: arduino-sdk arduino-sdk-clean arduino-sdk-distclean
+arduino-sdk:
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib/**
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/**
+
+	# Copy autoconf.h
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/
+	@cp -rf $(SDK_SRC_ROOT_DIR)/include/generated/autoconf.h $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/
+
+	# Copy 3rd-party include and libraries
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/3rd_party/include
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/3rd_party/lib
+	@cp -rf $(SDK_RTSMART_BUILD_DIR)/libs/3rd-party/include/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/3rd_party/include/
+	@cp -rf $(SDK_RTSMART_BUILD_DIR)/libs/3rd-party/lib/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/3rd_party/lib/
+
+	# Copy rtsmart_hal include and libraries
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/rtsmart_hal
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-rtsmart_hal
+	@cp -rf $(SDK_RTSMART_BUILD_DIR)/libs/rtsmart_hal/include/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/rtsmart_hal/
+	@cp -rf $(SDK_RTSMART_BUILD_DIR)/libs/rtsmart_hal/lib/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-rtsmart_hal/
+	@python3 $(SDK_TOOLS_DIR)/merge_libs.py \
+		--toolchain-prefix $(CROSS_COMPILE) \
+		--input $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-rtsmart_hal \
+		--output $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib/librtsmart_hal.a || exit $?;
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-rtsmart_hal
+
+	# Copy mpp include and libraries
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/mpp
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/mpp/api
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-mpp
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/mpp/include/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/mpp/
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/mpp/userapps/api/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/mpp/api/
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/mpp/userapps/lib/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-mpp/
+
+	# Remove vglite
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-mpp/libvg_lite.a
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-mpp/libvg_lite_util.a
+
+	@python3 $(SDK_TOOLS_DIR)/merge_libs.py \
+		--toolchain-prefix $(CROSS_COMPILE) \
+		--input $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-mpp \
+		--output $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib/libmpp.a || exit $?;
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib-mpp
+
+	# Copy opencv include and libraries
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/opencv/include
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/opencv/lib/3rdparty
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/libs/opencv/include/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/opencv/include/
+
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/libs/opencv/lib/*.a $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/opencv/lib/
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/libs/opencv/lib/opencv4/3rdparty/*.a $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/opencv/lib/3rdparty/
+
+	# Copy openblas include and libraries
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/openblas/include
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/openblas/lib
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/libs/openblas/include/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/openblas/include/
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/libs/openblas/lib/*.a $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/openblas/lib/
+
+	# Copy nncase include and libraries
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/nncase/
+	@cp -rf $(SDK_RTSMART_SRC_DIR)/libs/nncase/riscv64/* $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/nncase/
+
+	# Generate bin.vfat
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/variants/$(CONFIG_BOARD)/rtsmart/**
+	@mkdir -p $(SDK_ARDUINO_SDK_BUILD_DIR)/variants/$(CONFIG_BOARD)/rtsmart
+
+	@python3 $(SDK_TOOLS_DIR)/gen_image_vfat.py -o $(SDK_ARDUINO_SDK_BUILD_DIR)/variants/$(CONFIG_BOARD)/rtsmart/
+
+	@echo "Generate Arduino-core sdk done."
+
+arduino-sdk-clean:
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/lib/**
+	@rm -rf $(SDK_ARDUINO_SDK_BUILD_DIR)/cores/k230/sdk/include/**
+
+arduino-sdk-distclean: arduino-sdk-clean

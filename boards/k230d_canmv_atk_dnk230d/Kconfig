@@ -1,0 +1,4 @@
+if BOARD_K230D_CANMV_ATK_DNK230D
+    config BOARD_NOT_SUPPORT_HW_RTC
+        def_bool y
+endif

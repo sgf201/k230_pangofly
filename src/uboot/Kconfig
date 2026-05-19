@@ -1,0 +1,31 @@
+menu "Uboot Configuration"
+
+    config UBOOT_CONFIG_FILE
+        string "Uboot config file prefix"
+        default BOARD
+        help
+            uboot board config file name without _defconfig
+
+    config UBOOT_ENV_FILE
+        string "Uboot enviroment file"
+        default "default.env"
+
+    menuconfig UBOOT_USE_PREBUILT
+        bool "Uboot Use Prebuilt Binaries"
+        default n
+
+        if UBOOT_USE_PREBUILT
+            config UBOOT_PREBUILT_SPL_PATH
+                string "Prebuilt u-boot-spl.bin Path (under board folder)"
+                default "u-boot-spl.bin"
+
+            config UBOOT_PREBUILT_UBOOT_PATH
+                string "Prebuilt u-boot.bin Path (under board folder)"
+                default "u-boot.bin"
+
+            config SYS_TEXT_BASE
+                hex "Uboot Text Base Addr"
+                default 0x1000000
+        endif
+
+endmenu

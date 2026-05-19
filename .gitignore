@@ -1,0 +1,40 @@
+# Kendryte toolchain (large binaries)
+.kendryte/
+toolchain/
+
+# Build output
+output/
+*.img
+*.bin
+*.elf
+*.map
+
+# Configuration files
+.config
+.config.old
+.defconfig.tmp
+rtconfig.h
+
+# Scons build files
+.sconsign.dblite
+__pycache__/
+*.pyc
+
+# Temporary files
+*.swp
+*.bak
+*.tmp
+temp_backup/
+
+# Documentation
+*.md.bak
+
+# Misc
+.DS_Store
+.vscode/
+.idea/
+
+# Debian packages
+*.deb
+*.tar.xz
+*.tar.gz

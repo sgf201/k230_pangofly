@@ -1,0 +1,11 @@
+menu "Applications CanMV Configuration"
+
+    config RT_RECOVERY_MPY_AUTO_EXEC_PY
+        bool "Enable recovery micropython auto execute boot.py or main.py make system crash"
+        default n
+
+    config MOUNT_SECOND_CARD
+        bool "Mount second mmc card"
+        default n
+
+endmenu

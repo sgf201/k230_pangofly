@@ -1,0 +1,300 @@
+menu "Components Configuration"
+
+    menuconfig ENABLE_CHERRY_USB
+        bool "Enable CherryUSB"
+
+        if ENABLE_CHERRY_USB
+            config CHERRYUSB_DEVICE_DWC2_K230
+                def_bool y
+
+            config CHERRYUSB_HOST_DWC2_K230
+                def_bool y
+
+            config CHERRY_USB_OSAL_RTTHREAD
+                def_bool y
+
+            config CHERRY_USB_SPEED_HS
+                def_bool y
+
+            menuconfig ENABLE_CHERRY_USB_DEVICE
+                bool "Enable CherryUSB Device"
+                default n
+
+                if ENABLE_CHERRY_USB_DEVICE
+                    choice CHERRY_USB_DEVICE_USING_DEV
+                        bool "CherryUSB Device Use Device"
+                        default CHERRY_USB_DEVICE_USING_DEV0
+
+                        config CHERRY_USB_DEVICE_USING_DEV0
+                            bool "Using Dev0"
+
+                        config CHERRY_USB_DEVICE_USING_DEV1
+                            bool "Using Dev1"
+                    endchoice
+
+                    config CHERRY_USB_DEVICE_USING_DMA
+                        bool "Enable Device DMA"
+                        default n
+
+                    config CHERRY_USB_DEVICE_USING_DEV
+                        int
+                        default 0 if CHERRY_USB_DEVICE_USING_DEV0
+                        default 1 if CHERRY_USB_DEVICE_USING_DEV1
+
+                    menuconfig ENABLE_CHERRY_USB_DEVICE_CLASS_DRV
+                        bool "Enable CherryUSB Device Class Driver"
+                        default y
+
+                        if ENABLE_CHERRY_USB_DEVICE_CLASS_DRV
+                            config CHERRY_USB_DEVICE_ENABLE_CLASS_CDC_ACM
+                                bool "Enable CDC ACM"
+
+                            config CHERRY_USB_DEVICE_ENABLE_CLASS_HID
+                                bool "Enable HID"
+
+                            config CHERRY_USB_DEVICE_ENABLE_CLASS_MSC
+                                bool "Enable MSC"
+
+                            menuconfig CHERRY_USB_DEVICE_ENABLE_CLASS_MTP
+                                bool "Enable MTP"
+                                select CHERRY_USB_DEVICE_ENABLE_CLASS_MSC
+
+                                if CHERRY_USB_DEVICE_ENABLE_CLASS_MTP
+                                    config MTP_USE_FILE_STAT_OPERATION
+                                    bool "Use file stat in uMTP-Responder"
+                                    default n
+                                endif
+                            menuconfig CHERRY_USB_DEVICE_ENABLE_CLASS_UVC
+                                bool "Enable UVC"
+
+                                if CHERRY_USB_DEVICE_ENABLE_CLASS_UVC
+
+                                    config USB_DEVICE_UVC_IMG_WIDTH
+                                        int "UVC Image Width"
+                                        default 1920
+
+                                    config USB_DEVICE_UVC_IMG_HEIGHT
+                                        int "UVC Image Height"
+                                        default 1080
+                                    
+                                    config USB_DEVICE_UVC_IMG_FPS
+                                        int "UVC Image FrameRate"
+                                        default 30
+                                endif
+
+                            config CHERRY_USB_DEVICE_ENABLE_CLASS_ADB
+                                bool "Enable ADB"
+                        endif
+
+                    config CHERRY_USB_DEVICE_VID
+                        hex "USB Device VID"
+                        default 0x1209
+                    config CHERRY_USB_DEVICE_PID
+                        hex "USB Device PID"
+                        default 0xABD1
+
+                    choice
+                        prompt "USB Device Function"
+                        default CHERRY_USB_DEVICE_FUNC_CDC_MTP
+
+                        config CHERRY_USB_DEVICE_FUNC_CDC
+                            bool "CDC"
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_CDC_ACM
+                        config CHERRY_USB_DEVICE_FUNC_HID
+                            bool "HID Serial"
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_HID
+                        config CHERRY_USB_DEVICE_FUNC_CDC_MTP
+                            bool "CDC + MTP"
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_CDC_ACM
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_MTP
+                        config CHERRY_USB_DEVICE_FUNC_HID_CDC_MTP
+                            bool "HID Serial + CDC + MTP"
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_HID
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_CDC_ACM
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_MTP
+                        config CHERRY_USB_DEVICE_FUNC_CDC_ADB
+                            bool "CDC + ADB"
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_CDC_ACM
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_ADB
+                        config CHERRY_USB_DEVICE_FUNC_ADB
+                            bool "ADB"
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_ADB
+                        config CHERRY_USB_DEVICE_FUNC_UVC
+                            bool "UVC"
+                            select CHERRY_USB_DEVICE_ENABLE_CLASS_UVC
+                    endchoice
+
+                    config CHERRY_USB_DEVICE_FUNC_HID_DEVICE_NAME
+                        string "HID Serial Device Name"
+                        default "ttyHS0"
+                        depends on CHERRY_USB_DEVICE_FUNC_HID || CHERRY_USB_DEVICE_FUNC_HID_CDC_MTP
+                        help
+                          The RT-Thread device name for the HID Serial adapter (default: ttyHS0).
+
+                    config CHERRY_USB_DEVICE_FUNC_HID_DEBUG
+                        bool "Enable HID Serial Debug MSH Commands"
+                        default n
+                        depends on CHERRY_USB_DEVICE_FUNC_HID || CHERRY_USB_DEVICE_FUNC_HID_CDC_MTP
+                        help
+                          Enable hid_rd and hid_wr command in MSH to read/write HID serial device.
+
+                endif
+
+            menuconfig ENABLE_CHERRY_USB_HOST
+                bool "Enable CherryUSB Host"
+                default n
+
+                if ENABLE_CHERRY_USB_HOST
+
+                    choice CHERRY_USB_HOST_CONTROLLER_DRV
+                        bool "CherryUSB Host Controller Driver"
+                        default CHERRY_USB_HC_DRV_DWC2
+
+                        config CHERRY_USB_HC_DRV_DWC2
+                            bool "Using DesignWare Driver"
+                            if CHERRY_USB_HC_DRV_DWC2
+                                config DWC2_DRV_DMA_DESC_ENABLE
+                                    bool "Enable descriptor DMA mode"
+                                    default n
+                            endif
+
+                        config CHERRY_USB_HC_DRV_ORG
+                            bool "Using CherryUSB Driver"
+
+                    endchoice
+
+                    choice CHERRY_USB_HOST_USING_DEV
+                        bool "CherryUSB Host Use Device"
+                        default CHERRY_USB_HOST_USING_DEV0
+
+                        config CHERRY_USB_HOST_USING_DEV0
+                            bool "Using Dev0"
+
+                        config CHERRY_USB_HOST_USING_DEV1
+                            bool "Using Dev1"
+                    endchoice
+
+                    config CHERRY_USB_HOST_USING_DEV
+                        int
+                        default 0 if CHERRY_USB_HOST_USING_DEV0
+                        default 1 if CHERRY_USB_HOST_USING_DEV1
+
+                    menuconfig ENABLE_CHERRY_USB_HOST_CLASS_DRV
+                        bool "Enable CherryUSB Host Class Driver"
+                        default y
+
+                        if ENABLE_CHERRY_USB_HOST_CLASS_DRV
+                            config CHERRY_USB_HOST_ENABLE_CLASS_HID
+                                bool "Enable HID"
+                                default n
+
+                            config CHERRY_USB_HOST_ENABLE_CLASS_MSC
+                                bool "Enable MSC"
+                                default n
+
+                            if CHERRY_USB_HC_DRV_DWC2
+                                config CHERRY_USB_HOST_ENABLE_CLASS_UVC
+                                    bool "Enable UVC"
+                                    default n
+                            endif
+
+                            config CHERRY_USB_HOST_ENABLE_CLASS_CDC_ACM
+                                bool "Enable cdc ACM"
+                                default n
+
+                            config CHERRY_USB_HOST_ENABLE_CLASS_CDC_ECM
+                                bool "Enable cdc ECM"
+                                default n
+
+                            config CHERRY_USB_HOST_ENABLE_CLASS_CDC_NCM
+                                bool "Enable cdc NCM"
+                                default n
+
+                            menuconfig CHERRY_USB_HOST_ENABLE_CLASS_SERIAL
+                                bool "Enable SERIAL"
+                                default n
+
+                                if CHERRY_USB_HOST_ENABLE_CLASS_SERIAL
+
+                                    config CHERRY_USB_HOST_ENABLE_CLASS_SERIAL_EC200M
+                                    bool "Enable serial EC200M/A7680C or Other Compatible"
+                                    default y
+
+                                endif
+
+                            menuconfig CHERRY_USB_HOST_ENABLE_CLASS_NET_RTL8152
+                                bool "Enable net RTL8152"
+                                default n
+
+                                if CHERRY_USB_HOST_ENABLE_CLASS_NET_RTL8152
+                                    config CHERRY_USB_RTL8152_LINKCHECK
+                                        bool "Enable Link Down Check"
+                                        default n
+                                endif
+
+                            choice
+                                bool "CH397 Mode"
+                                depends on CHERRY_USB_HOST_ENABLE_CLASS_CDC_ECM || CHERRY_USB_HOST_ENABLE_CLASS_CDC_NCM
+
+                                config CHERRY_USB_HOST_CH397_MODE_ECM
+                                    depends on CHERRY_USB_HOST_ENABLE_CLASS_CDC_ECM
+                                    bool "ECM"
+
+                                config CHERRY_USB_HOST_CH397_MODE_NCM
+                                    depends on CHERRY_USB_HOST_ENABLE_CLASS_CDC_NCM
+                                    bool "NCM"
+                            endchoice
+
+                            config CHERRY_USB_HOST_CH397_MODE
+                                int
+                                default 1 if CHERRY_USB_HOST_CH397_MODE_ECM
+                                default 2 if CHERRY_USB_HOST_CH397_MODE_NCM
+
+                        endif
+
+                    menuconfig ENABLE_CANMV_USB_HOST
+                        bool "Enable USB Host for CanMV(Some USB Host Drivers)"
+                        default n
+                        select CHERRY_USB_HOST_ENABLE_CLASS_NET_RTL8152
+                        help
+                            CanMV USB Host support for class net/rtl8152 and etc.
+
+                        if ENABLE_CANMV_USB_HOST
+                            config CANMV_USB_PWR_PIN
+                                int "CanMV USB Host Power Control GPIO"
+                                default -1
+                            config CANMV_USB_PWR_PIN_VALID_VAL
+                                int "CanMV USB Host Power Vaild PIN Value"
+                                default 1
+                        endif
+
+                    config CANMV_USB_HOST_NET_RTL8152_DEV_NAME
+                        string
+                        default "u0"
+
+                    config CANMV_USB_HOST_NET_LTE_DEV_NAME
+                        string
+                        default "u1"
+
+                        endif
+        endif
+
+    config RT_USING_DEVMEM2
+        bool "Enable devmem2"
+        def_bool y
+
+    config RT_USING_USAGE
+        bool "Enable CPU usage"
+        def_bool y
+
+    config ENABLE_CANMV_NETWORK_MGMT_DEV
+        bool "Enable NetWork Mgmt for CanMV"
+        default n
+
+    config ENABLE_CANMV_MISC_DEV
+        bool "Enable misc Device for CanMV"
+        default n
+
+    source "components/netutils/Kconfig"
+
+endmenu
