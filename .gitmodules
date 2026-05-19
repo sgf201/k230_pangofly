@@ -1,0 +1,3 @@
+[submodule "pangofly"]
+	path = pangofly
+	url = https://github.com/sgf201/pangofly.git

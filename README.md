@@ -12,11 +12,43 @@ k230_pangofly/
 ├── configs/       # 编译配置
 ├── src/           # 源代码
 │   └── rtsmart/   # RT-Smart 内核（含共享内存修复）
-├── pangofly/      # Pangofly 共享内存通信库
+├── pangofly/      # Pangofly 共享内存通信库 (submodule)
 │   ├── pangofly/  # 核心代码
 │   ├── examples/  # 示例程序
 │   └── rtos_k230/ # K230 平台适配层
 └── tools/         # 工具脚本
+```
+
+### 关于 Pangofly Submodule
+
+Pangofly 作为独立库通过 Git Submodule 方式集成。首次克隆仓库后需要初始化 submodule：
+
+```bash
+# 克隆仓库（包含 submodule）
+git clone <repository-url> k230_pangofly
+cd k230_pangofly
+
+# 初始化并更新 submodule
+git submodule init
+git submodule update
+
+# 或者一步完成
+git clone --recurse-submodules <repository-url> k230_pangofly
+```
+
+如果已有仓库但缺少 submodule 内容：
+```bash
+git submodule update --init --recursive
+```
+
+更新 Pangofly 到最新版本：
+```bash
+cd pangofly
+git checkout main
+git pull origin main
+cd ..
+git add pangofly
+git commit -m "Update pangofly submodule"
 ```
 
 ## 获取镜像
@@ -132,10 +164,12 @@ chown -R $USER:$USER k230_pangofly
 
 ### 2. Pangofly 编译指南
 
+> ⚠️ **重要提示**：确保已按上文说明初始化 Pangofly submodule，否则 `pangofly/` 目录可能为空。
+
 #### 编译 Pangofly 测试程序
 
 ```bash
-# 1. 进入 Pangofly K230 适配层目录
+# 1. 进入 Pangofly K230 适配层目录（submodule）
 cd pangofly/rtos_k230
 
 # 2. 编译（生成三个测试程序）
@@ -148,7 +182,14 @@ make
 
 # 4. 复制到开发板
 # 编译后的 ELF 文件会自动复制到：
-# ../..//src/rtsmart/examples/elf/mpp/
+# ../../src/rtsmart/examples/elf/mpp/
+```
+
+#### 清理 Pangofly 构建产物
+
+```bash
+cd pangofly/rtos_k230
+make clean
 ```
 
 #### 测试 Pangofly

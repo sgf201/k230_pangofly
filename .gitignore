@@ -38,3 +38,9 @@ temp_backup/
 *.deb
 *.tar.xz
 *.tar.gz
+
+# Submodule build artifacts
+pangofly/build/
+pangofly/examples/
+*.o
+*.d
