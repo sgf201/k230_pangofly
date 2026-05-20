@@ -93,14 +93,94 @@ struct FaceDetectionResult {
 
 ### 虚拟内存预留区域
 
-通过 `make menuconfig` 配置：
+为避免固定地址映射与自动内存分配冲突，RT-Thread 内核支持配置专用的虚拟内存预留区域。
+
+#### 内核配置（RT-Thread）
+
+通过 `make menuconfig` 进入配置界面：
 
 ```
 RT_USING_LWP  --->
   [*] Enable Pangofly shared memory reserved region
-    (0x120000000) Start address
-    (0x80000000) Size (256MB)
+    (0x120000000) Pangofly reserved region start address
+    (0x80000000) Pangofly reserved region size
 ```
+
+**配置选项说明**：
+
+| 配置项 | 默认值 | 说明 |
+|--------|--------|------|
+| `Enable Pangofly shared memory reserved region` | 启用 | 开启预留区域功能 |
+| `Pangofly reserved region start address` | `0x120000000` | 预留区域起始地址（4.5GB） |
+| `Pangofly reserved region size` | `0x80000000` | 预留区域大小（256MB） |
+
+**配置原理**：
+- 预留区域位于用户空间地址范围（4GB ~ 8GB）
+- 内核在自动分配用户空间内存时，会自动跳过此区域
+- 确保 Pangofly 的固定地址映射不会与其他内存分配冲突
+
+**配置文件位置**：
+- 配置项定义：`src/rtsmart/rtsmart/kernel/rt-thread/components/lwp/Kconfig`
+- 预留区域检测：`src/rtsmart/rtsmart/kernel/rt-thread/components/lwp/arch/risc-v/rv64/lwp_arch.h`
+- 内存分配跳过逻辑：`src/rtsmart/rtsmart/kernel/rt-thread/components/lwp/lwp_user_mm.c`
+
+#### 应用程序配置
+
+应用程序中需要使用与内核配置相匹配的地址：
+
+```cpp
+#include "pangofly/transport/shm/k230_shm.h"
+
+// 使用内核配置的预留区域地址
+#define PANGOFLY_SHM_BASE_ADDR 0x120000000ULL
+#define PANGOFLY_SHM_SIZE      0x80000000ULL  // 256MB
+
+void init_pangofly() {
+    // 初始化时指定使用预留区域
+    pangofly::Init(nullptr);
+    
+    // 创建节点时可指定共享内存基地址
+    auto node = pangofly::CreateNode("my_node");
+    
+    // Writer/Reader 会自动使用预留区域内的地址
+    auto writer = node->CreateWriter<MyMessage>("my_channel");
+}
+```
+
+**Pangofly 地址配置**：
+
+在 `pangofly/pangofly/transport/shm/k230_shm.cc` 中定义：
+
+```cpp
+// 默认使用内核预留区域地址
+static const uint64_t DEFAULT_SHM_BASE = 0x120000000ULL;
+static const uint64_t DEFAULT_SHM_SIZE = 0x80000000ULL;
+```
+
+**工作流程**：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    虚拟内存布局                              │
+├─────────────────────────────────────────────────────────────┤
+│  0x000000000 - 0x100000000  (4GB)  │  系统内核空间         │
+├─────────────────────────────────────────────────────────────┤
+│  0x100000000 - 0x120000000  (0.5GB)│  用户空间（自动分配）  │
+├─────────────────────────────────────────────────────────────┤
+│  0x120000000 - 0x1A0000000  (256MB)│  Pangofly 预留区域    │
+│                                   │  ← 固定地址映射使用    │
+├─────────────────────────────────────────────────────────────┤
+│  0x1A0000000 - 0x200000000  (1.5GB)│  用户空间（自动分配）  │
+├─────────────────────────────────────────────────────────────┤
+│  0x200000000 - ...          (8GB+) │  ELF 加载区、栈、堆    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**优势**：
+- ✅ 消除固定地址与自动分配的地址冲突
+- ✅ 支持多个 Pangofly 通道同时使用
+- ✅ 配置灵活，可根据需求调整大小
+- ✅ 向后兼容，不影响现有应用
 
 ---
 
