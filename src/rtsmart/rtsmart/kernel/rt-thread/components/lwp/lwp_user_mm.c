@@ -123,9 +123,24 @@ static void *_lwp_map_user(struct rt_lwp *lwp, void *map_va, size_t map_size, in
     if (!va)
     {
         rt_kprintf("Memory exhaustion!\r\n");
-        // sys_exit(-1);
         return 0;
     }
+
+#ifdef LWP_PANGOFLY_RESERVE_ENABLE
+    if (!map_va)
+    {
+        while (lwp_is_in_pangofly_reserve((char *)va))
+        {
+            unmap_range(lwp, va, map_size, 1);
+            va = rt_hw_mmu_map_auto(m_info, map_va, map_size, MMU_MAP_U_RWCB);
+            if (!va)
+            {
+                rt_kprintf("Memory exhaustion! (after skipping pangofly reserve)\r\n");
+                return 0;
+            }
+        }
+    }
+#endif
 
     area_type = text ? MM_AREA_TYPE_TEXT : MM_AREA_TYPE_DATA;
     ret = lwp_map_area_insert(&lwp->map_area, (size_t)va, map_size, area_type);

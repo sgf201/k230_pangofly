@@ -298,6 +298,43 @@ sync
 
 2. **`src/rtsmart/rtsmart/kernel/rt-thread/components/lwp/lwp_user_mm.c`**
    - 添加调试输出，便于追踪 mmap 操作
+   - 修改 `_lwp_map_user()` 函数，自动跳过 Pangofly 预留区域
+
+3. **`src/rtsmart/rtsmart/kernel/rt-thread/components/lwp/arch/risc-v/rv64/lwp_arch.h`**
+   - 添加 Pangofly 预留区域定义和检测函数
+
+4. **`src/rtsmart/rtsmart/kernel/rt-thread/components/lwp/Kconfig`**
+   - 添加 `LWP_PANGOFLY_RESERVE_ENABLE` 配置选项
+   - 添加 `LWP_PANGOFLY_RESERVE_ADDR` 预留区域起始地址配置
+   - 添加 `LWP_PANGOFLY_RESERVE_SIZE` 预留区域大小配置
+
+### Pangofly 虚拟内存预留区域
+
+为了避免固定地址映射与自动内存分配冲突，系统支持配置专用的虚拟内存预留区域：
+
+**配置选项**（通过 `make menuconfig` 配置）：
+
+```
+RT_USING_LWP  --->
+  [*] Enable Pangofly shared memory reserved region
+    (0x104D00000) Pangofly reserved region start address
+    (0x1000000) Pangofly reserved region size
+```
+
+**默认配置**：
+- 预留区域起始地址：`0x104D00000`
+- 预留区域大小：`0x1000000` (16MB)
+
+**工作原理**：
+1. 内核在自动分配用户空间内存时，会自动跳过预留区域
+2. Pangofly 使用预留区域内的固定地址进行共享内存映射
+3. 预留区域对其他进程不可见，避免地址冲突
+
+**优势**：
+- ✅ 消除固定地址与自动分配的地址冲突
+- ✅ 支持多个 Pangofly 通道同时使用
+- ✅ 配置灵活，可根据需求调整预留区域大小
+- ✅ 向后兼容，不影响现有应用
 
 ## 开发环境配置
 

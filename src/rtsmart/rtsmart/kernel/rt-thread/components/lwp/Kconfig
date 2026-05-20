@@ -43,6 +43,31 @@ if RT_USING_LWP
         config RT_LWP_SHM_MAX_NR
             int "The maximum number of shared memory"
             default 64
+
+        config LWP_PANGOFLY_RESERVE_ENABLE
+            bool "Enable Pangofly shared memory reserved region"
+            default y
+            help
+                Enable reserved virtual memory region for Pangofly shared memory communication.
+                This prevents address conflicts between automatic memory allocation and Pangofly's
+                fixed address mapping.
+
+        if LWP_PANGOFLY_RESERVE_ENABLE
+            config LWP_PANGOFLY_RESERVE_ADDR
+                hex "Pangofly reserved region start address"
+                default 0x104D00000
+                help
+                    The start virtual address of the reserved region for Pangofly shared memory.
+                    This address should be within the user space range and not conflict with
+                    other memory mappings.
+
+            config LWP_PANGOFLY_RESERVE_SIZE
+                hex "Pangofly reserved region size"
+                default 0x1000000
+                help
+                    The size of the reserved region for Pangofly shared memory (default 16MB).
+                    This should be large enough to accommodate all Pangofly channels and messages.
+        endif
     endif
 
     if ARCH_MM_MPU

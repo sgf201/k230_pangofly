@@ -41,6 +41,22 @@ rt_inline rt_bool_t lwp_in_user_space(const char *addr)
     return (addr >= (char *)USER_VADDR_START && addr < (char *)USER_VADDR_TOP);
 }
 
+/* Pangofly shared memory reserved region */
+#ifdef LWP_PANGOFLY_RESERVE_ENABLE
+#ifndef PANGOFLY_RESERVE_ADDR
+#define PANGOFLY_RESERVE_ADDR   0x104D00000UL
+#endif
+#ifndef PANGOFLY_RESERVE_SIZE
+#define PANGOFLY_RESERVE_SIZE   0x1000000UL  /* 16MB */
+#endif
+#define PANGOFLY_RESERVE_END    (PANGOFLY_RESERVE_ADDR + PANGOFLY_RESERVE_SIZE)
+
+rt_inline rt_bool_t lwp_is_in_pangofly_reserve(const char *addr)
+{
+    return (addr >= (char *)PANGOFLY_RESERVE_ADDR && addr < (char *)PANGOFLY_RESERVE_END);
+}
+#endif
+
 /* this attribution is cpu specified, and it should be defined in riscv_mmu.h */
 #ifndef MMU_MAP_U_RWCB
 #define MMU_MAP_U_RWCB 0
