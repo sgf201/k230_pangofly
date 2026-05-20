@@ -317,13 +317,13 @@ sync
 ```
 RT_USING_LWP  --->
   [*] Enable Pangofly shared memory reserved region
-    (0x104D00000) Pangofly reserved region start address
-    (0x1000000) Pangofly reserved region size
+    (0x120000000) Pangofly reserved region start address
+    (0x80000000) Pangofly reserved region size
 ```
 
 **默认配置**：
-- 预留区域起始地址：`0x104D00000`
-- 预留区域大小：`0x1000000` (16MB)
+- 预留区域起始地址：`0x120000000` (4.5GB)
+- 预留区域大小：`0x80000000` (256MB)
 
 **工作原理**：
 1. 内核在自动分配用户空间内存时，会自动跳过预留区域

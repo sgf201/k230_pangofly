@@ -55,18 +55,20 @@ if RT_USING_LWP
         if LWP_PANGOFLY_RESERVE_ENABLE
             config LWP_PANGOFLY_RESERVE_ADDR
                 hex "Pangofly reserved region start address"
-                default 0x104D00000
+                default 0x120000000
                 help
                     The start virtual address of the reserved region for Pangofly shared memory.
                     This address should be within the user space range and not conflict with
                     other memory mappings.
+                    Recommended range: 0x100000000 (4GB) to 0x200000000 (8GB)
 
             config LWP_PANGOFLY_RESERVE_SIZE
                 hex "Pangofly reserved region size"
-                default 0x1000000
+                default 0x80000000
                 help
-                    The size of the reserved region for Pangofly shared memory (default 16MB).
+                    The size of the reserved region for Pangofly shared memory (default 256MB).
                     This should be large enough to accommodate all Pangofly channels and messages.
+                    Maximum recommended: 0xE0000000 (3.5GB) to avoid overlapping with USER_LOAD_VADDR (8GB)
         endif
     endif
 
